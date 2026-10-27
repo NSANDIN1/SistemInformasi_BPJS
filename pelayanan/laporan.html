@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Laporan Bulanan - Divisi Pelayanan BPJS Ketenagakerjaan</title>
+  <!-- Penjaga sesi: hanya akun Pelayanan yang sudah login yang boleh membuka halaman ini -->
+  <script src="../js/auth-guard.js" data-role="pelayanan"></script>
+  <!-- Font Inter + ikon Font Awesome (butuh internet; tanpa internet tampilan tetap berfungsi, hanya ikon/font yang tidak muncul) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <aside class="sidebar" id="sidebar" aria-label="Navigasi utama"></aside>
+  <div class="sb-backdrop" id="sb-backdrop"></div>
+
+  <div class="main-col">
+    <header class="topbar">
+      <button class="menu-btn" id="menu-btn" type="button" aria-label="Buka menu" aria-controls="sidebar" aria-expanded="false"><i class="fa-solid fa-bars"></i></button>
+      <div>
+        <div class="tb-title">Monthly Report Divisi Pelayanan <span class="badge">Laporan Bulanan</span></div>
+        <div class="tb-sub" id="crumb"><a href="index.html">Beranda</a></div>
+      </div>
+      <div class="spacer"></div>
+      <span class="pill-status" id="tb-status"><span class="pulse"></span><span id="tb-status-text">Memuat…</span></span>
+      <a class="btn btn-outline" href="index.html"><i class="fa-solid fa-arrow-left"></i> Halaman utama</a>
+    </header>
+
+    <main class="page">
+      <div class="report-head">
+        <h1 id="judul">Laporan</h1>
+        <p class="meta" id="meta"></p>
+        <nav class="month-nav" id="month-nav" aria-label="Pilih bulan lain"></nav>
+        <div class="tabs" id="tabs" role="tablist" aria-label="Bagian laporan"></div>
+      </div>
+      <div id="content" aria-live="polite"></div>
+    </main>
+    <footer class="footer">Monthly Report Divisi Pelayanan · BPJS Ketenagakerjaan Kanwil Sumbagsel</footer>
+  </div>
+
+  <script src="js/data.js"></script>
+  <script src="js/main.js"></script>
+  <script src="js/laporan.js"></script>
+  <script>initShell("laporan"); initLaporan();</script>
+</body>
+</html>

@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard Pelayanan - BPJS Ketenagakerjaan Sumbagsel</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>tailwind.config={theme:{extend:{colors:{bpjsBlue:'#0078C8',bpjsGreen:'#00B140',bpjsLightGreen:'#88C438',bpjsYellow:'#D4E116',bgSoft:'#F4F7F6',darkText:'#122B40'}}}}</script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+body{font-family:'Inter',sans-serif}
+.hero-bg{background:radial-gradient(900px 400px at 90% -20%,rgba(136,196,56,.55),transparent 60%),linear-gradient(135deg,#00508a,#0078C8 60%,#0098b4)}
+.card{background:#fff;border:1px solid #e5e7eb;border-radius:1.5rem;padding:1.5rem;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+.kpi::after{content:'';position:absolute;right:-50px;bottom:-60px;width:160px;height:160px;border-radius:50%;background:var(--g);opacity:.13}
+</style>
+</head>
+<body class="bg-bgSoft text-darkText">
+
+     <!-- Header / Navigasi -->
+    <header class="sticky top-0 z-40 max-w-7xl mx-auto w-full px-6 py-4 flex items-center justify-between bg-white/80 backdrop-blur-xl shadow-sm rounded-b-2xl">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-xl bg-bpjsGreen flex items-center justify-center text-white font-black text-sm shadow-md">
+                BPJS
+            </div>
+            <span class="text-lg font-extrabold tracking-tight text-bpjsBlue">KANWIL SUMBAGSEL</span>
+        </div>
+
+        <nav class="hidden md:flex items-center space-x-8 text-sm font-semibold text-gray-700">
+            <a href="index.html" class="hover:text-bpjsGreen transition-colors">Beranda</a>
+            <a href="index.html" class="hover:text-bpjsGreen transition-colors">Peran Kerja</a>
+            
+            <!-- Menu Dropdown Bisnis -->
+            <div class="relative inline-block text-left" id="dropdownBisnis">
+                <button onclick="toggleBisnisMenu()" class="flex items-center gap-1.5 hover:text-bpjsGreen transition-colors font-semibold focus:outline-none cursor-pointer">
+                    <span>Dashboard</span>
+                    <i class="fa-solid fa-chevron-down text-xs transition-transform duration-200" id="arrowIcon"></i>
+                </button>
+
+                <!-- Konten Turunan (Dropdown Box) -->
+                <div id="dropdownMenu" class="hidden absolute left-0 mt-3 w-64 bg-white text-slate-800 rounded-2xl shadow-xl py-2 z-50 border border-slate-100">
+                    <a href="dbpelayanan.html" class="flex items-center gap-4 px-5 py-3 hover:bg-slate-50 transition-colors">
+                        <i class="fa-solid fa-handshake text-xl text-slate-700 w-6 text-center"></i>
+                        <span class="font-semibold text-sm">Pelayanan</span>
+                    </a>
+                    <a href="dbkepesertaan.html" class="flex items-center gap-4 px-5 py-3 hover:bg-slate-50 transition-colors">
+                        <i class="fa-solid fa-briefcase text-xl text-slate-700 w-6 text-center"></i>
+                        <span class="font-semibold text-sm">Kepesertaan</span>
+                    </a>
+                </div>
+            </div>
+        </nav>
+        <div class="flex items-center space-x-3">
+            <button aria-label="Search" class="p-2 text-gray-600 hover:text-bpjsGreen transition-colors cursor-pointer">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                </svg>
+            </button>
+            <button aria-label="Notifications" class="p-2 text-gray-600 hover:text-bpjsGreen transition-colors cursor-pointer">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+                </svg>
+            </button>
+            <button onclick="toggleLoginForm('pelayanan')" class="bg-bpjsBlue text-white px-6 py-2 rounded-full text-sm font-bold hover:bg-opacity-90 transition-all shadow-md cursor-pointer">
+                Login
+            </button>
+        </div>
+    </header>
+
+<main class="max-w-7xl mx-auto px-6 pb-10 space-y-6">
+
+    <section class="hero-bg rounded-[2rem] text-white p-8 lg:p-10 shadow-xl flex flex-wrap items-end justify-between gap-6">
+        <div>
+            <span class="inline-block bg-white/15 border border-white/30 rounded-full px-4 py-1 text-xs font-bold text-bpjsYellow">Dashboard Publik</span>
+            <h1 class="text-3xl lg:text-4xl font-extrabold mt-3 tracking-tight">Monthly Report Pelayanan Sumbagsel</h1>
+            <p id="ket" class="text-sm text-white/90 mt-2 font-medium">Memuat data…</p>
+        </div>
+        <div class="flex flex-wrap items-end gap-3">
+            <label class="text-xs font-bold uppercase tracking-wider text-white/90">Bulan Laporan
+                <select id="f-bulan" onchange="render()" class="block mt-1.5 min-w-[200px] rounded-xl px-4 py-2.5 text-sm font-bold text-darkText bg-white outline-none"></select>
+            </label>
+            <a id="lnk-laporan" href="pelayanan/laporan.html" class="bg-white/15 hover:bg-white/25 border border-white/30 rounded-xl px-5 py-2.5 text-sm font-bold transition-colors">Buka laporan lengkap <span aria-hidden="true">→</span></a>
+        </div>
+    </section>
+
+    <div id="kosong" class="hidden card text-center text-gray-700 font-medium">Belum ada data Monthly Report. Dashboard terisi setelah data laporan dimasukkan di modul Pelayanan (pelayanan/js/data.js).</div>
+
+    <section id="kpi" class="grid grid-cols-2 lg:grid-cols-3 gap-4"></section>
+
+    <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="card lg:col-span-2">
+            <h2 class="font-extrabold">Tren Capaian Sumbagsel <span class="text-xs font-semibold text-gray-500">(seluruh bulan yang tersedia)</span></h2>
+            <div class="h-72 mt-4"><canvas id="c-tren"></canvas></div>
+        </div>
+        <div class="card">
+            <h2 class="font-extrabold">Komposisi Kasus Klaim <span class="text-xs font-semibold text-gray-500">(per program)</span></h2>
+            <div id="w-klaim" class="h-72 mt-4"><canvas id="c-klaim"></canvas></div>
+        </div>
+        <div class="card lg:col-span-2" id="b-esurvey">
+            <h2 class="font-extrabold">Skor E-Survey antar Kanwil <span class="text-xs font-semibold text-gray-500">(skala 5, Sumbagsel disorot)</span></h2>
+            <div class="h-80 mt-4"><canvas id="c-esurvey"></canvas></div>
+        </div>
+        <div class="card" id="b-digital">
+            <h2 class="font-extrabold">Capaian Digital Service <span class="text-xs font-semibold text-gray-500">(antar Kanwil)</span></h2>
+            <div class="h-80 mt-4"><canvas id="c-digital"></canvas></div>
+        </div>
+        <div class="card lg:col-span-3" id="b-mlt">
+            <h2 class="font-extrabold">MLT: Target vs Realisasi Unit <span class="text-xs font-semibold text-gray-500">(per kantor cabang)</span></h2>
+            <div class="h-72 mt-4"><canvas id="c-mlt"></canvas></div>
+        </div>
+    </section>
+
+    <section class="card">
+        <h2 class="font-extrabold">Target, Realisasi, dan Capaian</h2>
+        <p class="text-sm text-gray-700 mt-1 mb-4">Ringkasan indikator utama bulan terpilih. Tanda “-” berarti sumber hanya mencantumkan target dan persentase capaian.</p>
+        <div class="overflow-auto">
+            <table class="w-full text-left text-sm">
+                <thead><tr class="text-xs uppercase text-gray-500 bg-gray-50">
+                    <th class="p-3 rounded-l-xl">Indikator</th><th class="p-3 text-right">Target</th><th class="p-3 text-right">Realisasi</th><th class="p-3 text-right rounded-r-xl">Capaian</th>
+                </tr></thead>
+                <tbody id="tabel"></tbody>
+            </table>
+        </div>
+    </section>
+
+    <p class="text-xs text-gray-600 text-center">Data bersumber dari dokumen PDF Monthly Report dan file Excel internal Divisi Pelayanan. Bulan tanpa laporan tidak ditampilkan; tidak ada angka perkiraan.</p>
+</main>
+
+<script src="pelayanan/js/data.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const BULAN = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+const SUMBAGSEL = /sumbagsel/i;
+const nf0 = new Intl.NumberFormat('id-ID', { maximumFractionDigits: 0 });
+const nf2 = new Intl.NumberFormat('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fInt = v => v == null ? '-' : nf0.format(v);
+const fDec = v => v == null ? '-' : nf2.format(v);
+const fPct = v => v == null ? '-' : nf2.format(v) + '%';
+const fPctDown = v => v == null ? '-' : nf2.format(Math.floor(v * 100) / 100) + '%';
+const fRp = v => v == null ? '-' : 'Rp ' + nf0.format(v);
+const fRpShort = v => v == null ? '-' : Math.abs(v) >= 1e9 ? 'Rp ' + nf2.format(v / 1e9) + ' M' : Math.abs(v) >= 1e6 ? 'Rp ' + nf2.format(v / 1e6) + ' jt' : 'Rp ' + nf0.format(v);
+const esc = x => String(x == null ? '' : x).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const sum = (rows, k) => (rows || []).reduce((t, r) => t + (r[k] || 0), 0);
+
+const DATA = (typeof REPORT_DATA !== 'undefined') ? REPORT_DATA : {};
+const BULAN_ADA = Object.keys(DATA).map(Number).filter(n => n >= 1 && n <= 12).sort((a, b) => a - b);
+const ch = {};
+function grafik(id, cfg) { if (ch[id]) ch[id].destroy(); ch[id] = new Chart($(id), cfg); }
+
+// Ringkasan indikator Sumbagsel dari satu bulan (logika sama dengan halaman laporan)
+function ringkas(S) {
+    const o = {};
+    const kp = S.esurveyKpi, k = (S.esurveyKanwil || []).find(r => SUMBAGSEL.test(r.nama));
+    if (kp) o.esurvey = { skor: kp.skor, peringkat: kp.peringkat, dari: (S.esurveyKanwil || []).length, pctPuas: kp.pctPuas, puas: kp.respondenPuas, total: kp.respondenTotal };
+    else if (k) o.esurvey = { skor: k.skala5 };
+    const d = (S.digitalKanwil || []).find(r => SUMBAGSEL.test(r.nama));
+    if (d) {
+        const urut = S.digitalKanwil.slice().sort((a, b) => b.pencapaian - a.pencapaian);
+        o.digital = { capaian: d.pencapaian, target: d.target, real: d.realisasi, rank: urut.indexOf(d) + 1, dari: urut.length };
+    }
+    if (S.klaim && S.klaim.programs) o.klaim = { kasus: sum(S.klaim.programs, 'kasus'), nominal: sum(S.klaim.programs, 'nominal') };
+    if (S.slaKpi) o.sla = { tot: S.slaKpi.total, ok: S.slaKpi.terpenuhi };
+    else if (S.slaKlaim && S.slaKlaim.length) o.sla = { tot: sum(S.slaKlaim, 'total'), ok: sum(S.slaKlaim, 'totalSla') };
+    if (S.pengaduan && S.pengaduan.length) o.pengaduan = { tot: sum(S.pengaduan, 'total'), ok: sum(S.pengaduan, 'sesuaiSla') };
+    if (S.mlt && S.mlt.length) {
+        const rows = S.mlt.filter(r => !/kanwil/i.test(r.nama)), kk = S.mltKpi;
+        o.mlt = { target: sum(rows, 'targetUnit'), real: kk ? kk.realUnit : sum(rows, 'realUnit'), nominal: kk ? kk.realNominal : sum(rows, 'realNominal'), pct: kk ? kk.pctUnit : null };
+    }
+    if (S.unit && S.unit.jumlah) o.unit = { pmi: S.unit.jumlah.pmi, kab: S.unit.jumlah.kabKota };
+    return o;
+}
+const pctOf = (a, b) => b ? a / b * 100 : null;
+
+function sembunyi(id, tampil) { $(id).classList.toggle('hidden', !tampil); }
+
+function render() {
+    if (!BULAN_ADA.length) { $('kosong').classList.remove('hidden'); $('ket').textContent = 'Belum ada data.'; return; }
+    const n = Number($('f-bulan').value) || BULAN_ADA[BULAN_ADA.length - 1];
+    const R = DATA[String(n)], S = R.sections || {}, o = ringkas(S);
+    $('ket').textContent = 'Periode ' + R.periode + ' · Kanwil Sumbagsel';
+    $('lnk-laporan').href = 'pelayanan/laporan.html?bulan=' + n;
+
+    // KPI
+    const kpis = [];
+    if (o.esurvey) kpis.push(['E-Survey Sumbagsel (skala 5)', fDec(o.esurvey.skor), o.esurvey.peringkat ? 'Peringkat ' + o.esurvey.peringkat + ' dari ' + o.esurvey.dari + ' Kanwil' : '', '#0078C8']);
+    if (o.digital) kpis.push(['Digital Service', fPct(o.digital.capaian), 'Peringkat ' + o.digital.rank + ' dari ' + o.digital.dari + ' Kanwil', '#00B140']);
+    if (o.klaim) kpis.push(['Pembayaran Klaim', fInt(o.klaim.kasus) + ' kasus', fRpShort(o.klaim.nominal), '#88C438']);
+    if (o.sla) kpis.push(['Klaim Sesuai SLA', fPctDown(pctOf(o.sla.ok, o.sla.tot)), fInt(o.sla.ok) + ' dari ' + fInt(o.sla.tot) + ' klaim', '#0078C8']);
+    if (o.pengaduan) kpis.push(['Pengaduan Sesuai SLA', fPctDown(pctOf(o.pengaduan.ok, o.pengaduan.tot)), fInt(o.pengaduan.ok) + ' dari ' + fInt(o.pengaduan.tot) + ' pengaduan', '#00B140']);
+    if (o.mlt) kpis.push(['MLT Realisasi Unit', fInt(o.mlt.real) + ' / ' + fInt(o.mlt.target), 'Nominal ' + fRpShort(o.mlt.nominal), '#D4E116']);
+    else if (o.unit) kpis.push(['Unit Layanan', fInt(o.unit.pmi + o.unit.kab) + ' titik', o.unit.pmi + ' PMI · ' + o.unit.kab + ' Kab/Kota', '#D4E116']);
+    $('kpi').innerHTML = kpis.length ? kpis.map(k => `<div class="card kpi relative overflow-hidden" style="--g:${k[3]}"><p class="text-[11px] font-extrabold text-gray-500 uppercase tracking-wider">${esc(k[0])}</p><p class="text-3xl font-black mt-2" style="color:${k[3] === '#D4E116' ? '#8d9608' : k[3]}">${esc(k[1])}</p><p class="text-xs font-medium text-gray-600 mt-1">${esc(k[2])}</p></div>`).join('')
+        : '<div class="card col-span-full text-center text-gray-600 font-medium">Indikator bulan ini belum tersedia.</div>';
+
+    // Komposisi klaim
+    const prog = (S.klaim && S.klaim.programs) || [];
+    sembunyi('w-klaim', prog.length > 0);
+    if (prog.length) grafik('c-klaim', { type: 'doughnut', data: { labels: prog.map(p => p.program), datasets: [{ data: prog.map(p => p.kasus), backgroundColor: ['#0078C8', '#00B140', '#88C438', '#D4E116', '#94a3b8', '#cbd5e1'], borderWidth: 2 }] }, options: { responsive: true, maintainAspectRatio: false, cutout: '62%', plugins: { legend: { position: 'bottom' } } } });
+    else if (ch['c-klaim']) { ch['c-klaim'].destroy(); delete ch['c-klaim']; }
+
+    // E-Survey antar Kanwil
+    const es = (S.esurveyKanwil || []).slice().sort((a, b) => b.skala5 - a.skala5);
+    sembunyi('b-esurvey', es.length > 0);
+    if (es.length) grafik('c-esurvey', { type: 'bar', data: { labels: es.map(r => r.nama), datasets: [{ data: es.map(r => r.skala5), backgroundColor: es.map(r => SUMBAGSEL.test(r.nama) ? '#0078C8' : '#00B140'), borderRadius: 8 }] }, options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, max: 6 } } } });
+
+    // Digital Service antar Kanwil
+    const dg = (S.digitalKanwil || []).slice().sort((a, b) => b.pencapaian - a.pencapaian);
+    sembunyi('b-digital', dg.length > 0);
+    if (dg.length) grafik('c-digital', { type: 'bar', data: { labels: dg.map(r => r.nama.replace(/^KANWIL /, '')), datasets: [{ data: dg.map(r => r.pencapaian), backgroundColor: dg.map(r => SUMBAGSEL.test(r.nama) ? '#0078C8' : '#00B140'), borderRadius: 8 }] }, options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, max: 100 } } } });
+
+    // MLT per cabang
+    const ml = (S.mlt || []).filter(r => !/kanwil/i.test(r.nama));
+    sembunyi('b-mlt', ml.length > 0);
+    if (ml.length) grafik('c-mlt', { type: 'bar', data: { labels: ml.map(r => r.nama), datasets: [
+        { label: 'Target unit', data: ml.map(r => r.targetUnit || 0), backgroundColor: '#cbd5e1', borderRadius: 6 },
+        { label: 'Realisasi unit', data: ml.map(r => r.realUnit || 0), backgroundColor: '#0078C8', borderRadius: 6 }
+    ] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } } });
+
+    // Tabel target / realisasi / capaian
+    const L = [];
+    if (o.digital) L.push(['Digital Service (Kanwil Sumbagsel)', fDec(o.digital.target), fDec(o.digital.real), fPct(o.digital.capaian)]);
+    if (S.digitalKartu) {
+        const c = S.digitalKartu;
+        L.push(['Digital Service: Klaim JHT via JMO', fInt(c.targetJHT), '-', fPct(c.pctJHT)]);
+        L.push(['Digital Service: JP Berkala', fInt(c.targetJP), '-', fPct(c.pctJP)]);
+        L.push(['Digital Service: Beasiswa JMO', fInt(c.targetBea), '-', fPct(c.pctBea)]);
+    }
+    if (o.sla) L.push(['Klaim sesuai SLA', fInt(o.sla.tot) + ' klaim', fInt(o.sla.ok) + ' klaim', fPctDown(pctOf(o.sla.ok, o.sla.tot))]);
+    if (o.pengaduan) L.push(['Pengaduan sesuai SLA', fInt(o.pengaduan.tot) + ' pengaduan', fInt(o.pengaduan.ok) + ' pengaduan', fPctDown(pctOf(o.pengaduan.ok, o.pengaduan.tot))]);
+    if (o.mlt) L.push(['MLT (unit)', fInt(o.mlt.target), fInt(o.mlt.real), o.mlt.pct != null ? fPct(o.mlt.pct) : fPct(pctOf(o.mlt.real, o.mlt.target))]);
+    $('tabel').innerHTML = L.length ? L.map(l => `<tr class="border-t border-gray-100"><td class="p-3 font-semibold">${esc(l[0])}</td><td class="p-3 text-right">${esc(l[1])}</td><td class="p-3 text-right">${esc(l[2])}</td><td class="p-3 text-right font-black">${esc(l[3])}</td></tr>`).join('')
+        : '<tr><td colspan="4" class="p-6 text-center font-bold text-gray-500">Belum ada indikator untuk bulan ini.</td></tr>';
+}
+
+// Tren lintas bulan (tidak bergantung pilihan bulan)
+function isiTren() {
+    const rows = BULAN_ADA.map(m => ({ m, o: ringkas(DATA[String(m)].sections || {}) }));
+    const lab = rows.map(r => BULAN[r.m - 1]);
+    const seri = (label, fn, warna, axis) => ({ label, data: rows.map(r => { const v = fn(r.o); return v == null ? null : +v.toFixed(2); }), borderColor: warna, backgroundColor: warna, tension: .35, yAxisID: axis, spanGaps: true, pointRadius: 5 });
+    grafik('c-tren', { type: 'line', data: { labels: lab, datasets: [
+        seri('Klaim sesuai SLA (%)', o => o.sla && Math.floor(pctOf(o.sla.ok, o.sla.tot) * 100) / 100, '#00B140', 'y'),
+        seri('Pengaduan sesuai SLA (%)', o => o.pengaduan && Math.floor(pctOf(o.pengaduan.ok, o.pengaduan.tot) * 100) / 100, '#88C438', 'y'),
+        seri('Digital Service (%)', o => o.digital && o.digital.capaian, '#0078C8', 'y'),
+        seri('E-Survey (skala 5)', o => o.esurvey && o.esurvey.skor, '#f59e0b', 'y1')
+    ] }, options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, plugins: { legend: { position: 'bottom' } },
+        scales: { y: { title: { display: true, text: 'Persen' } }, y1: { position: 'right', min: 0, max: 6, grid: { drawOnChartArea: false }, title: { display: true, text: 'Skor' } } } } });
+}
+
+function toggleLoginForm() { location.href = 'index.html'; }   // login ada di halaman beranda
+
+function toggleBisnisMenu() {
+    $('dropdownMenu').classList.toggle('hidden');
+    $('arrowIcon').classList.toggle('rotate-180');
+}
+window.addEventListener('click', function (e) {
+    const dd = $('dropdownBisnis');
+    if (dd && !dd.contains(e.target)) { $('dropdownMenu').classList.add('hidden'); $('arrowIcon').classList.remove('rotate-180'); }
+});
+
+if (BULAN_ADA.length) {
+    $('f-bulan').innerHTML = BULAN_ADA.slice().reverse().map(m => `<option value="${m}">${BULAN[m - 1]} ${esc((DATA[String(m)].periode || '').split(' ').pop())}</option>`).join('');
+    isiTren();
+}
+render();
+</script>
+</body>
+</html>

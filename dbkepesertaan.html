@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard Perisai - BPJS Ketenagakerjaan Sumbagsel</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>tailwind.config={theme:{extend:{colors:{bpjsBlue:'#0078C8',bpjsGreen:'#00B140',bpjsLightGreen:'#88C438',bpjsYellow:'#D4E116',bgSoft:'#F4F7F6',darkText:'#122B40'}}}}</script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+body{font-family:'Inter',sans-serif}
+.hero-bg{background:radial-gradient(900px 400px at 90% -20%,rgba(136,196,56,.55),transparent 60%),linear-gradient(135deg,#00508a,#0078C8 60%,#0098b4)}
+.card{background:#fff;border:1px solid #e5e7eb;border-radius:1.5rem;padding:1.5rem;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+.kpi::after{content:'';position:absolute;right:-50px;bottom:-60px;width:160px;height:160px;border-radius:50%;background:var(--g);opacity:.13}
+</style>
+</head>
+<body class="bg-bgSoft text-darkText">
+
+     <!-- Header / Navigasi -->
+    <header class="sticky top-0 z-40 max-w-7xl mx-auto w-full px-6 py-4 flex items-center justify-between bg-white/80 backdrop-blur-xl shadow-sm rounded-b-2xl">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-xl bg-bpjsGreen flex items-center justify-center text-white font-black text-sm shadow-md">
+                BPJS
+            </div>
+            <span class="text-lg font-extrabold tracking-tight text-bpjsBlue">KANWIL SUMBAGSEL</span>
+        </div>
+
+        <nav class="hidden md:flex items-center space-x-8 text-sm font-semibold text-gray-700">
+            <a href="index.html" class="hover:text-bpjsGreen transition-colors">Beranda</a>
+            <a href="index.html" class="hover:text-bpjsGreen transition-colors">Peran Kerja</a>
+            
+            <!-- Menu Dropdown Bisnis -->
+            <div class="relative inline-block text-left" id="dropdownBisnis">
+                <button onclick="toggleBisnisMenu()" class="flex items-center gap-1.5 hover:text-bpjsGreen transition-colors font-semibold focus:outline-none cursor-pointer">
+                    <span>Dashboard</span>
+                    <i class="fa-solid fa-chevron-down text-xs transition-transform duration-200" id="arrowIcon"></i>
+                </button>
+
+                <!-- Konten Turunan (Dropdown Box) -->
+                <div id="dropdownMenu" class="hidden absolute left-0 mt-3 w-64 bg-white text-slate-800 rounded-2xl shadow-xl py-2 z-50 border border-slate-100">
+                    <a href="dbpelayanan.html" class="flex items-center gap-4 px-5 py-3 hover:bg-slate-50 transition-colors">
+                        <i class="fa-solid fa-handshake text-xl text-slate-700 w-6 text-center"></i>
+                        <span class="font-semibold text-sm">Pelayanan</span>
+                    </a>
+                    <a href="#" class="flex items-center gap-4 px-5 py-3 hover:bg-slate-50 transition-colors">
+                    <a href="dbkepesertaan.html" class="flex items-center gap-4 px-5 py-3 hover:bg-slate-50 transition-colors">
+                        <i class="fa-solid fa-briefcase text-xl text-slate-700 w-6 text-center"></i>
+                        <span class="font-semibold text-sm">Kepesertaan</span>
+                    </a>
+                </div>
+            </div>
+        </nav>
+        <div class="flex items-center space-x-3">
+            <button aria-label="Search" class="p-2 text-gray-600 hover:text-bpjsGreen transition-colors cursor-pointer">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                </svg>
+            </button>
+            <button aria-label="Notifications" class="p-2 text-gray-600 hover:text-bpjsGreen transition-colors cursor-pointer">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+                </svg>
+            </button>
+            <button onclick="toggleLoginForm('pelayanan')" class="bg-bpjsBlue text-white px-6 py-2 rounded-full text-sm font-bold hover:bg-opacity-90 transition-all shadow-md cursor-pointer">
+                Login
+            </button>
+        </div>
+    </header>
+
+<main class="max-w-7xl mx-auto px-6 pb-10 space-y-6">
+
+    <section class="hero-bg rounded-[2rem] text-white p-8 lg:p-10 shadow-xl flex flex-wrap items-end justify-between gap-6">
+        <div>
+            <span class="inline-block bg-white/15 border border-white/30 rounded-full px-4 py-1 text-xs font-bold text-bpjsYellow">Dashboard Publik</span>
+            <h1 class="text-3xl lg:text-4xl font-extrabold mt-3 tracking-tight">Perkembangan Perisai Sumbagsel</h1>
+            <p id="ket" class="text-sm text-white/90 mt-2 font-medium">Memuat data…</p>
+        </div>
+        <label class="text-xs font-bold uppercase tracking-wider text-white/90">Kantor Cabang
+            <select id="f-cabang" onchange="render()" class="block mt-1.5 min-w-[220px] rounded-xl px-4 py-2.5 text-sm font-bold text-darkText bg-white outline-none"></select>
+        </label>
+    </section>
+
+    <div id="kosong" class="hidden card text-center text-gray-700 font-medium">Belum ada data. Dashboard terisi setelah data Perisai Aktif diimport di modul Kepesertaan (buka dari alamat server yang sama).</div>
+
+    <section id="kpi" class="grid grid-cols-2 lg:grid-cols-5 gap-4"></section>
+
+    <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="card lg:col-span-2">
+            <h2 class="font-extrabold">Perisai Baru per Bulan <span class="text-xs font-semibold text-gray-500">(12 bulan terakhir, berdasarkan tanggal aktif)</span></h2>
+            <div class="h-72 mt-4"><canvas id="c-bulan"></canvas></div>
+        </div>
+        <div class="card">
+            <h2 class="font-extrabold">Status Wadah <span class="text-xs font-semibold text-gray-500">(tanpa Perisai baru)</span></h2>
+            <div class="h-72 mt-4"><canvas id="c-status"></canvas></div>
+        </div>
+        <div class="card">
+            <h2 class="font-extrabold">Perisai Baru per Tahun</h2>
+            <div class="h-72 mt-4"><canvas id="c-tahun"></canvas></div>
+        </div>
+        <div class="card lg:col-span-2">
+            <h2 class="font-extrabold">10 Cabang dengan Perisai Terbanyak</h2>
+            <div class="h-72 mt-4"><canvas id="c-cabang"></canvas></div>
+        </div>
+    </section>
+
+    <section id="warning" class="card">
+        <div class="flex flex-wrap items-start justify-between gap-3 mb-4">
+            <div>
+                <h2 class="font-extrabold flex items-center gap-2"><span class="text-xl">⚠️</span> Early Warning Wadah</h2>
+                <p class="text-sm text-gray-700 mt-1">Wadah yang belum mendapat Perisai baru selama 2 bulan atau lebih, diurutkan dari yang terlama. Mengikuti pilihan kantor cabang di atas.</p>
+            </div>
+            <div id="ew-info" class="flex flex-wrap gap-2"></div>
+        </div>
+        <div class="overflow-auto max-h-[32rem]">
+            <table class="w-full text-left text-sm">
+                <thead><tr class="text-xs uppercase text-gray-500 bg-gray-50">
+                    <th class="p-3 rounded-l-xl">Kantor Cabang</th><th class="p-3">Nama Wadah</th><th class="p-3 text-right">Perisai</th><th class="p-3">Perisai Baru Terakhir</th><th class="p-3 text-right">Tanpa Tambahan</th><th class="p-3 rounded-r-xl">Status</th>
+                </tr></thead>
+                <tbody id="tabel"></tbody>
+            </table>
+        </div>
+    </section>
+
+    <p class="text-xs text-gray-600 text-center">Data agregat dari import Perisai Aktif terbaru. Nama individu Perisai tidak ditampilkan. Status wadah: Waspada ≥ 60 hari dan Perlu Dibina ≥ 90 hari tanpa Perisai baru.</p>
+</main>
+
+<script>
+const KEY = 'ews_perisai_aktif_data_v2';
+let ALL = [];
+try { ALL = JSON.parse(localStorage.getItem(KEY)) || []; } catch (e) {}
+const ISO = /^\d{4}-\d{2}-\d{2}$/;
+const valid = ALL.filter(r => ISO.test(r.periode));
+const TGL = valid.length ? valid.reduce((m, r) => r.periode > m ? r.periode : m, '') : null;
+const SNAP = ALL.filter(r => !TGL || r.periode === TGL);   // import terbaru, dihitung per baris
+
+const $ = id => document.getElementById(id);
+const esc = x => String(x == null ? '' : x).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const num = n => n.toLocaleString('id-ID');
+const BULAN = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+const today = new Date(); today.setHours(0, 0, 0, 0);
+const toDate = s => ISO.test(s) ? new Date(s + 'T00:00:00') : null;
+const hari = d => Math.round((today - d) / 864e5);
+const wk = r => r.kodeWadah || (r.cabang + '|' + r.wadah);
+const ch = {};
+function grafik(id, cfg) { if (ch[id]) ch[id].destroy(); ch[id] = new Chart($(id), cfg); }
+
+// status tiap wadah: hari sejak Perisai baru terakhir
+function statusWadah(rows) {
+    const m = {};
+    rows.forEach(r => { const d = toDate(r.tglAktif), k = wk(r); if (!m[k]) m[k] = null; if (d && (!m[k] || d > m[k])) m[k] = d; });
+    return Object.values(m).filter(Boolean).map(hari);
+}
+
+const fmt = t => t.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+function toggleLoginForm() { location.href = 'index.html'; }   // login ada di halaman beranda
+
+function renderEW() {
+    const f = $('f-cabang').value;
+    const D = f ? SNAP.filter(r => r.cabang === f) : SNAP;
+    const m = {};
+    D.forEach(r => {
+        const k = wk(r), t = toDate(r.tglAktif);
+        const w = m[k] || (m[k] = { cabang: r.cabang, wadah: r.wadah, n: 0, last: null });
+        w.n++;
+        if (t && (!w.last || t > w.last)) w.last = t;
+    });
+    const butuh = Object.values(m).filter(w => w.last).map(w => Object.assign(w, { h: hari(w.last) })).filter(w => w.h >= 60).sort((a, b) => b.h - a.h);
+    const nK = butuh.filter(w => w.h >= 90).length, nW = butuh.length - nK;
+    $('ew-info').innerHTML = `<span class="bg-red-100 text-red-700 text-xs font-extrabold px-3 py-1.5 rounded-full">Perlu Dibina: ${nK}</span><span class="bg-amber-100 text-amber-800 text-xs font-extrabold px-3 py-1.5 rounded-full">Waspada: ${nW}</span>`;
+    $('tabel').innerHTML = butuh.length ? butuh.map(w => `<tr class="border-t border-gray-100 ${w.h >= 90 ? 'bg-red-50/40' : ''}"><td class="p-3 font-semibold">${esc(w.cabang)}</td><td class="p-3 font-bold">${esc(w.wadah)}</td><td class="p-3 text-right">${num(w.n)}</td><td class="p-3 text-xs font-bold">${fmt(w.last)}</td><td class="p-3 text-right font-black">${w.h} hari</td><td class="p-3">${w.h >= 90 ? '<span class="bg-red-100 text-red-700 text-xs font-extrabold px-3 py-1.5 rounded-full">⚠️ Perlu Dibina</span>' : '<span class="bg-amber-100 text-amber-800 text-xs font-extrabold px-3 py-1.5 rounded-full">⏳ Waspada</span>'}</td></tr>`).join('') : '<tr><td colspan="6" class="p-6 text-center font-bold text-bpjsGreen">✓ Aman, semua wadah mendapat Perisai baru dalam 2 bulan terakhir.</td></tr>';
+}
+
+function countUp(el, to) {
+    const t0 = performance.now();
+    const f = t => { const p = Math.min(1, (t - t0) / 900); el.textContent = num(Math.round(to * (1 - Math.pow(1 - p, 3)))); if (p < 1) requestAnimationFrame(f); };
+    requestAnimationFrame(f);
+}
+
+function render() {
+    if (!SNAP.length) { $('kosong').classList.remove('hidden'); $('ket').textContent = 'Belum ada data.'; return; }
+    const f = $('f-cabang').value;
+    const D = f ? SNAP.filter(r => r.cabang === f) : SNAP;
+    $('ket').textContent = 'Data per ' + (TGL ? new Date(TGL + 'T00:00:00').toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' }) : '-') + (f ? ' · ' + f : ' · seluruh cabang');
+
+    // KPI
+    const awalBulan = new Date(today.getFullYear(), today.getMonth(), 1);
+    const sw = statusWadah(D);
+    const kpis = [
+        ['Total Perisai', D.length, '#0078C8'],
+        ['Jumlah Wadah', new Set(D.map(wk)).size, '#00B140'],
+        ['Baru 90 Hari Terakhir', D.filter(r => { const d = toDate(r.tglAktif); return d && hari(d) < 90; }).length, '#88C438'],
+        ['Baru Bulan Ini', D.filter(r => { const d = toDate(r.tglAktif); return d && d >= awalBulan; }).length, '#D4E116'],
+        ['Wadah Perlu Dibina', sw.filter(h => h >= 90).length, '#dc2626']
+    ];
+    $('kpi').innerHTML = kpis.map((k, i) => `<div class="card kpi relative overflow-hidden" style="--g:${k[2]}"><p class="text-[11px] font-extrabold text-gray-500 uppercase tracking-wider">${k[0]}</p><p id="k${i}" class="text-4xl font-black mt-2" style="color:${k[2]}">0</p></div>`).join('');
+    kpis.forEach((k, i) => countUp($('k' + i), k[1]));
+
+    // Per bulan (12 bulan terakhir) + kumulatif
+    const bln = [];
+    for (let i = 11; i >= 0; i--) { const d = new Date(today.getFullYear(), today.getMonth() - i, 1); bln.push({ y: d.getFullYear(), m: d.getMonth(), label: BULAN[d.getMonth()] + ' ' + String(d.getFullYear()).slice(2) }); }
+    const awal = new Date(bln[0].y, bln[0].m, 1);
+    let kum = D.filter(r => { const d = toDate(r.tglAktif); return d && d < awal; }).length;
+    const baru = bln.map(b => D.filter(r => { const d = toDate(r.tglAktif); return d && d.getFullYear() === b.y && d.getMonth() === b.m; }).length);
+    const kumulatif = baru.map(n => (kum += n));
+    grafik('c-bulan', { data: { labels: bln.map(b => b.label), datasets: [
+        { type: 'bar', label: 'Perisai baru', data: baru, backgroundColor: '#00B140', borderRadius: 8, yAxisID: 'y' },
+        { type: 'line', label: 'Total kumulatif', data: kumulatif, borderColor: '#0078C8', backgroundColor: '#0078C8', tension: .35, yAxisID: 'y1' }
+    ] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { precision: 0 } }, y1: { position: 'right', grid: { drawOnChartArea: false }, ticks: { precision: 0 } } } } });
+
+    // Status wadah
+    const st = [sw.filter(h => h < 60).length, sw.filter(h => h >= 60 && h < 90).length, sw.filter(h => h >= 90).length];
+    grafik('c-status', { type: 'doughnut', data: { labels: ['Aman', 'Waspada', 'Perlu Dibina'], datasets: [{ data: st, backgroundColor: ['#00B140', '#f59e0b', '#dc2626'], borderWidth: 2 }] }, options: { responsive: true, maintainAspectRatio: false, cutout: '62%', plugins: { legend: { position: 'bottom' } } } });
+
+    renderEW();
+
+    // Per tahun
+    const thn = {};
+    D.forEach(r => { const d = toDate(r.tglAktif); if (d) thn[d.getFullYear()] = (thn[d.getFullYear()] || 0) + 1; });
+    const ty = Object.keys(thn).sort();
+    grafik('c-tahun', { type: 'bar', data: { labels: ty, datasets: [{ label: 'Perisai baru', data: ty.map(y => thn[y]), backgroundColor: '#0078C8', borderRadius: 8 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } } });
+}
+
+// Peringkat & tabel cabang (selalu seluruh cabang; cabang terpilih disorot)
+function isiCabang() {
+    const g = {};
+    SNAP.forEach(r => { (g[r.cabang] = g[r.cabang] || []).push(r); });
+    const baris = Object.entries(g).map(([c, rows]) => ({
+        c, n: rows.length, w: new Set(rows.map(wk)).size,
+        b90: rows.filter(r => { const d = toDate(r.tglAktif); return d && hari(d) < 90; }).length,
+        kritis: statusWadah(rows).filter(h => h >= 90).length
+    })).sort((a, b) => b.n - a.n);
+    $('f-cabang').innerHTML = '<option value="">Seluruh cabang</option>' + baris.map(b => `<option>${esc(b.c)}</option>`).join('');
+    const top = baris.slice(0, 10);
+    grafik('c-cabang', { type: 'bar', data: { labels: top.map(b => b.c), datasets: [{ data: top.map(b => b.n), backgroundColor: '#00B140', borderRadius: 8 }] }, options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, ticks: { precision: 0 } } } } });
+}
+
+if (SNAP.length) { isiCabang(); }
+render();
+</script>
+</body>
+</html>

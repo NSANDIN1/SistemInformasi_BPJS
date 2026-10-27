@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Operasional BPJS Kanwil SUMBAGSEL</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- Font Awesome untuk Ikon Dropdown -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        bpjsBlue: '#0078C8',
+                        bpjsGreen: '#00B140',
+                        bpjsLightGreen: '#88C438',
+                        bpjsYellow: '#D4E116',
+                        bgSoft: '#F4F7F6',
+                        darkText: '#122B40'
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Font Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .custom-pulse-marker {
+            position: absolute;
+        }
+        .custom-pulse-marker .core {
+            width: 12px;
+            height: 12px;
+            background-color: #00B140;
+            border-radius: 50%;
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            box-shadow: 0 0 4px rgba(0,0,0,0.3);
+        }
+        .custom-pulse-marker .ring {
+            width: 18px;
+            height: 18px;
+            background-color: rgba(0, 177, 64, 0.4);
+            border-radius: 50%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            animation: pulse-ring 1.5s infinite;
+        }
+        @keyframes pulse-ring {
+            0% { transform: scale(0.8); opacity: 1; }
+            100% { transform: scale(1.8); opacity: 0; }
+        }
+        .leaflet-popup-content-wrapper {
+            background-color: #122B40;
+            color: #ffffff;
+            border-radius: 12px;
+            padding: 4px;
+        }
+        .leaflet-popup-tip {
+            background-color: #122B40;
+        }
+        .leaflet-container img,
+        .leaflet-container .leaflet-tile {
+         max-width: none !important;
+         max-height: none !important;
+}
+
+        .hero-bg{background:radial-gradient(1100px 520px at 88% -10%,rgba(136,196,56,.55),transparent 60%),radial-gradient(900px 500px at -10% 115%,rgba(0,177,64,.45),transparent 55%),linear-gradient(135deg,#00508a 0%,#0078C8 55%,#0098b4 100%)}
+        .grid-dots{background-image:radial-gradient(rgba(255,255,255,.2) 1px,transparent 1px);background-size:22px 22px}
+        .blob{position:absolute;border-radius:9999px;filter:blur(60px);opacity:.45;animation:floaty 9s ease-in-out infinite}
+        @keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-26px)}}
+        .glass{background:rgba(255,255,255,.16);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.3)}
+        .grad-text{background:linear-gradient(90deg,#D4E116,#9be15d);-webkit-background-clip:text;background-clip:text;color:transparent}
+        .reveal{opacity:0;transform:translateY(26px);transition:opacity .7s ease,transform .7s ease}
+        .reveal.show{opacity:1;transform:none}
+        .stat-card{position:relative;overflow:hidden}
+        .stat-card::after{content:'';position:absolute;right:-70px;bottom:-90px;width:260px;height:260px;border-radius:50%;background:var(--g);opacity:.14}
+        .live-dot{width:8px;height:8px;border-radius:50%;background:#00B140;box-shadow:0 0 0 0 rgba(0,177,64,.6);animation:ping 1.8s infinite}
+        @keyframes ping{70%{box-shadow:0 0 0 9px rgba(0,177,64,0)}100%{box-shadow:0 0 0 0 rgba(0,177,64,0)}}
+        @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+        .shake{animation:shake .3s ease-in-out}
+        @media (prefers-reduced-motion:reduce){.blob,.live-dot,.shake{animation:none}.reveal{opacity:1;transform:none;transition:none}}
+    </style>
+</head>
+<body class="bg-bgSoft text-darkText min-h-screen flex flex-col justify-between selection:bg-bpjsBlue selection:text-white">
+
+    <!-- Header / Navigasi -->
+    <header class="sticky top-0 z-40 max-w-7xl mx-auto w-full px-6 py-4 flex items-center justify-between bg-white/80 backdrop-blur-xl shadow-sm rounded-b-2xl">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-xl bg-bpjsGreen flex items-center justify-center text-white font-black text-sm shadow-md">
+                BPJS
+            </div>
+            <span class="text-lg font-extrabold tracking-tight text-bpjsBlue">KANWIL SUMBAGSEL</span>
+        </div>
+
+        <nav class="hidden md:flex items-center space-x-8 text-sm font-semibold text-gray-700">
+            <a href="#" class="hover:text-bpjsGreen transition-colors">Beranda</a>
+            <a href="#peran-kerja" class="hover:text-bpjsGreen transition-colors">Peran Kerja</a>
+            
+            <!-- Menu Dropdown Bisnis -->
+            <div class="relative inline-block text-left" id="dropdownBisnis">
+                <button onclick="toggleBisnisMenu()" class="flex items-center gap-1.5 hover:text-bpjsGreen transition-colors font-semibold focus:outline-none cursor-pointer">
+                    <span>Dashboard</span>
+                    <i class="fa-solid fa-chevron-down text-xs transition-transform duration-200" id="arrowIcon"></i>
+                </button>
+
+                <!-- Konten Turunan (Dropdown Box) -->
+                <div id="dropdownMenu" class="hidden absolute left-0 mt-3 w-64 bg-white text-slate-800 rounded-2xl shadow-xl py-2 z-50 border border-slate-100">
+                    <a href="dbpelayanan.html" class="flex items-center gap-4 px-5 py-3 hover:bg-slate-50 transition-colors">
+                        <i class="fa-solid fa-handshake text-xl text-slate-700 w-6 text-center"></i>
+                        <span class="font-semibold text-sm">Pelayanan</span>
+                    </a>
+                    <a href="#" class="flex items-center gap-4 px-5 py-3 hover:bg-slate-50 transition-colors">
+                    <a href="dbkepesertaan.html" class="flex items-center gap-4 px-5 py-3 hover:bg-slate-50 transition-colors">
+                        <i class="fa-solid fa-briefcase text-xl text-slate-700 w-6 text-center"></i>
+                        <span class="font-semibold text-sm">Kepesertaan</span>
+                    </a>
+                </div>
+            </div>
+        </nav>
+
+        <div class="flex items-center space-x-3">
+            <button aria-label="Search" class="p-2 text-gray-600 hover:text-bpjsGreen transition-colors cursor-pointer">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                </svg>
+            </button>
+            <button aria-label="Notifications" class="p-2 text-gray-600 hover:text-bpjsGreen transition-colors cursor-pointer">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+                </svg>
+            </button>
+            <button onclick="toggleLoginForm('pelayanan')" class="bg-bpjsBlue text-white px-6 py-2 rounded-full text-sm font-bold hover:bg-opacity-90 transition-all shadow-md cursor-pointer">
+                Login
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto w-full px-6 py-8 flex-grow space-y-12">
+        
+        <!-- HERO BANNER -->
+        <div id="hero" class="relative hero-bg rounded-[2.5rem] overflow-hidden shadow-2xl p-8 lg:p-12 flex flex-col lg:flex-row items-center justify-between gap-8">
+            <div class="absolute inset-0 grid-dots opacity-60"></div>
+            <div class="blob bg-bpjsYellow w-56 h-56 -top-16 left-1/3"></div>
+            <div class="blob bg-bpjsGreen w-64 h-64 -bottom-24 -left-10" style="animation-delay:-4s"></div>
+
+            <div class="w-full lg:w-3/5 text-white z-10 flex flex-col justify-center space-y-6">
+                <div class="inline-flex items-center space-x-2 bg-white/10 backdrop-blur-md px-4 py-1.5 rounded-full w-max border border-white/20 text-xs font-bold text-bpjsYellow">
+                    <span class="w-2 h-2 rounded-full bg-bpjsYellow animate-pulse"></span>
+                    <span>Sistem Pemantauan Operasional Sumbagsel</span>
+                </div>
+
+                <h1 class="text-2xl sm:text-3xl lg:text-4xl font-extrabold leading-snug tracking-tight">
+                    <span class="grad-text">Memantau dengan presisi,</span> Mengoptimalkan performa operasional dan memberdayakan layanan terbaik di seluruh wilayah Sumbagsel
+                </h1>
+
+                <div class="flex flex-wrap items-center gap-6 pt-2">
+                    <a href="#peran-kerja" class="bg-bpjsGreen text-white font-extrabold px-8 py-3.5 rounded-full hover:bg-opacity-90 transition-all shadow-lg cursor-pointer text-sm">
+                        Pilih Peran Kerja
+                    </a>
+
+                    <div class="flex items-center space-x-6 border-l border-white/30 pl-6">
+                        <div>
+                            <div class="text-3xl font-black text-white"><span class="count" data-to="24">24</span> Titik</div>
+                            <div class="text-xs text-white/90 font-medium">Wilayah Presisi</div>
+                        </div>
+                        <div>
+                            <div class="text-3xl font-black text-bpjsYellow"><span class="count" data-to="5">5</span> Provinsi</div>
+                            <div class="text-xs text-white/90 font-medium">Cakupan Wilayah</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-2 pt-2 text-sm">
+                    <span class="glass text-white px-3.5 py-1 rounded-full font-semibold">Presisi Data</span>
+                    <span class="glass text-white px-3.5 py-1 rounded-full font-semibold">Pemantauan Berkala</span>
+                    <span class="glass text-white px-3.5 py-1 rounded-full font-semibold">Kearsipan Terpadu</span>
+                </div>
+            </div>
+
+            <!-- PETA 24 TITIK WILAYAH SUMBAGSEL -->
+            <div class="w-full lg:w-2/5 min-w-0 flex justify-center items-center z-10">
+                <div class="w-full glass rounded-3xl p-3 shadow-2xl">
+                    <div id="map" class="w-full h-[320px] sm:h-[380px] lg:h-[430px] rounded-2xl overflow-hidden bg-slate-50 relative z-0"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= SECTION PERAN KERJA ================= -->
+        <section id="peran-kerja" class="pt-4 scroll-mt-24">
+            <div class="max-w-full mb-8">
+                <h2 class="text-2xl sm:text-3xl font-extrabold text-darkText tracking-tight">
+                    Pilih peran kerja untuk mengoptimalkan layanan dan operasional !
+                </h2>
+                <p class="text-sm text-gray-500 mt-1 font-medium">Klik pada peran Anda untuk masuk ke antarmuka kerja masing-masing bidang.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Kartu 1: PELAYANAN -->
+                <div onclick="toggleLoginForm('pelayanan')" class="group reveal flex flex-col bg-white rounded-3xl p-5 border border-gray-200 shadow-sm hover:shadow-2xl hover:-translate-y-1.5 cursor-pointer">
+                    <div class="bg-gradient-to-br from-bpjsBlue to-sky-500 rounded-2xl p-5 relative overflow-hidden h-52 flex flex-col justify-between shadow-inner transition-transform group-hover:scale-[1.01]">
+                        <div class="inline-block bg-black/25 backdrop-blur-md text-white text-xs px-3.5 py-1.5 rounded-full w-max font-bold tracking-wider uppercase">Pelayanan</div>
+                        <div class="self-center my-auto text-white/90">
+                            <svg class="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                        </div>
+                        <div class="w-9 h-9 bg-white text-bpjsBlue rounded-full flex items-center justify-center shadow-md group-hover:scale-110 transition-transform">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                        </div>
+                    </div>
+                    <div class="pt-4 flex-grow">
+                        <h3 class="text-base font-bold text-gray-900 mb-1.5 group-hover:text-bpjsBlue transition-colors">Layanan Garansi & Proteksi Utama Peserta</h3>
+                        <p class="text-sm text-gray-700 leading-relaxed">Memberikan pelayanan prima terkait klaim jaminan, informasi program, serta menangani konsultasi dan pengaduan peserta secara terpadu.</p>
+                    </div>
+                </div>
+
+                <!-- Kartu 2: KEPESERTAAN -->
+                <div onclick="toggleLoginForm('kepesertaan')" class="group reveal flex flex-col bg-white rounded-3xl p-5 border border-gray-200 shadow-sm hover:shadow-2xl hover:-translate-y-1.5 cursor-pointer">
+                    <div class="bg-gradient-to-br from-bpjsGreen to-emerald-400 rounded-2xl p-5 relative overflow-hidden h-52 flex flex-col justify-between shadow-inner transition-transform group-hover:scale-[1.01]">
+                        <div class="inline-block bg-black/25 backdrop-blur-md text-white text-xs px-3.5 py-1.5 rounded-full w-max font-bold tracking-wider uppercase">Kepesertaan</div>
+                        <div class="self-center my-auto text-white/90">
+                            <svg class="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+                        </div>
+                        <div class="w-9 h-9 bg-white text-bpjsGreen rounded-full flex items-center justify-center shadow-md group-hover:scale-110 transition-transform">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                        </div>
+                    </div>
+                    <div class="pt-4 flex-grow">
+                        <h3 class="text-base font-bold text-gray-900 mb-1.5 group-hover:text-bpjsGreen transition-colors">Pengelolaan & Perluasan Cakupan Peserta</h3>
+                        <p class="text-sm text-gray-700 leading-relaxed">Mengelola registrasi tenaga kerja baru, pemutakhiran data badan usaha, serta pemantauan cakupan kepesertaan di seluruh wilayah Sumbagsel.</p>
+                    </div>
+                </div>
+
+                <!-- Kartu 3: KEARSIAN -->
+                <div onclick="toggleLoginForm('kearsipan')" class="group reveal flex flex-col bg-white rounded-3xl p-5 border border-gray-200 shadow-sm hover:shadow-2xl hover:-translate-y-1.5 cursor-pointer">
+                    <div class="bg-gradient-to-br from-bpjsLightGreen to-lime-400 rounded-2xl p-5 relative overflow-hidden h-52 flex flex-col justify-between shadow-inner transition-transform group-hover:scale-[1.01]">
+                        <div class="inline-block bg-black/25 backdrop-blur-md text-white text-xs px-3.5 py-1.5 rounded-full w-max font-bold tracking-wider uppercase">Kearsipan</div>
+                        <div class="self-center my-auto text-white/90">
+                            <svg class="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 8h14M5 8a2 2 0 01-2-2V5a2 2 0 012-2h14a2 2 0 012 2v1a2 2 0 01-2 2M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"></path></svg>
+                        </div>
+                        <div class="w-9 h-9 bg-white text-bpjsLightGreen rounded-full flex items-center justify-center shadow-md group-hover:scale-110 transition-transform">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                        </div>
+                    </div>
+                    <div class="pt-4 flex-grow">
+                        <h3 class="text-base font-bold text-gray-900 mb-1.5 group-hover:text-bpjsLightGreen transition-colors">Pengelolaan Dokumen & Digitalisasi Berkas</h3>
+                        <p class="text-sm text-gray-700 leading-relaxed">Penyimpanan, penataan, dan penjaminan keamanan dokumen administrasi serta penetapan arsip operasional secara efisien.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= SECTION FORM LOGIN ================= -->
+        <section id="form-login-section" onclick="if(event.target===this)closeLoginForm()" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/55 backdrop-blur-sm p-4">
+            <div id="login-box" class="w-full max-w-lg bg-white border border-gray-200 p-8 rounded-3xl shadow-2xl">
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h3 class="text-xl font-bold text-bpjsBlue">Masuk ke Akun Anda</h3>
+                    <p class="text-xs text-gray-500 mt-1">Silakan masukkan kredensial kerja Anda</p>
+                </div>
+                <button type="button" onclick="closeLoginForm()" class="text-gray-400 hover:text-gray-600 text-2xl font-bold cursor-pointer">&times;</button>
+            </div>
+
+            <form id="login-form" class="space-y-4" onsubmit="handleLoginSubmit(event)" autocomplete="off" novalidate>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1.5">Pilih Peran Kerja</label>
+                    <select id="role-select" class="w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-bpjsGreen text-xs font-bold text-bpjsBlue">
+                        <option value="pelayanan">PELAYANAN</option>
+                        <option value="kepesertaan">KEPESERTAAN</option>
+                        <option value="kearsipan">KEARSIPAN</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1.5">Username</label>
+                    <input id="login-username" type="text" required placeholder="Masukkan username" autocomplete="off" class="w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-bpjsGreen text-xs">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1.5">Password</label>
+                    <input id="login-password" type="password" required placeholder="••••••••" autocomplete="off" class="w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-bpjsGreen text-xs">
+                </div>
+
+                <div id="login-error" role="alert" aria-live="assertive" class="hidden items-start gap-2 bg-red-50 border border-red-200 text-red-700 text-xs font-semibold rounded-xl px-4 py-3">
+                    <svg class="w-4 h-4 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"></path></svg>
+                    <span id="login-error-text"></span>
+                </div>
+
+                <div class="flex items-center justify-between text-xs">
+                    <label class="flex items-center space-x-2 text-gray-600">
+                        <input type="checkbox" class="rounded border-gray-300 text-bpjsGreen focus:ring-bpjsGreen">
+                        <span>Ingat saya</span>
+                    </label>
+                    <a href="#" class="text-bpjsBlue font-semibold hover:underline">Lupa password?</a>
+                </div>
+                <button type="submit" class="w-full bg-bpjsGreen text-white font-bold py-3 rounded-xl hover:bg-opacity-90 transition-all shadow-md text-sm cursor-pointer">
+                    Log In Ke Form Dashboard
+                </button>
+            </form>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="max-w-7xl mx-auto w-full px-6 py-4 border-t border-gray-200 text-center text-xs text-gray-500">
+        &copy; 2026 BPJS Ketenagakerjaan Wilayah Sumbagsel. All rights reserved.
+    </footer>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- Script JavaScript Terintegrasi -->
+    <script>
+        // Script Dropdown Bisnis
+        function toggleBisnisMenu() {
+            const menu = document.getElementById('dropdownMenu');
+            const arrow = document.getElementById('arrowIcon');
+            
+            menu.classList.toggle('hidden');
+            arrow.classList.toggle('rotate-180');
+        }
+
+        // Menutup dropdown jika pengguna klik di luar area
+        window.addEventListener('click', function(e) {
+            const dropdown = document.getElementById('dropdownBisnis');
+            const menu = document.getElementById('dropdownMenu');
+            const arrow = document.getElementById('arrowIcon');
+
+            if (dropdown && !dropdown.contains(e.target)) {
+                menu.classList.add('hidden');
+                arrow.classList.remove('rotate-180');
+            }
+        });
+
+        // Data 24 Lokasi
+        const LOCATIONS = [
+            { id: 1, name: '1. Jambi', lat: -1.6003244458496575, lng: 103.59618203786783, status: 'Aktif' },
+            { id: 2, name: '2. Muara Bungo', lat: -1.4872583201691187, lng: 102.11779933640346, status: 'Aktif' },
+            { id: 3, name: '3. Merangin Bangko', lat: -2.072327381813301, lng: 102.27694158561357, status: 'Aktif' },
+            { id: 4, name: '4. Muaro Jambi Sengeti', lat: -1.479183722135715, lng: 103.50548277116462, status: 'Aktif' },
+            { id: 5, name: '5. Sarolangun Lintas Sumatera', lat: -2.3032880168240486, lng: 102.71345275582313, status: 'Aktif' },
+            { id: 6, name: '6. Batanghari Muara Bulian', lat: -1.7036984349795665, lng: 103.2665303288354, status: 'Aktif' },
+            { id: 7, name: '7. Tanjung Jabung Muara Tungkal', lat: -0.8225767117801819, lng: 103.46080373253064, status: 'Aktif' },
+            { id: 8, name: '8. Sungai Penuh Yos Sudarso', lat: -2.074569898533324, lng: 101.40430408835373, status: 'Aktif' },
+            { id: 9, name: '9. Palembang', lat: -2.9739871692076543, lng: 104.75333780036112, status: 'Sangat Aktif' },
+            { id: 12, name: '12. Muara Enim', lat: -3.6302238364994253, lng: 103.7756967533442, status: 'Aktif' },
+            { id: 13, name: '13. Banyuasin Pangkalan Balai', lat: -2.9170572760018696, lng: 104.42172061349386, status: 'Aktif' },
+            { id: 14, name: '14. Lubuk Linggau Yos Sudarso', lat: -3.2825601315184754, lng: 102.88773988650611, status: 'Aktif' },
+            { id: 15, name: '15. Lahat Pasar Lama', lat: -3.7795918010078675, lng: 103.55941594232927, status: 'Aktif' },
+            { id: 16, name: '16. OKU Baturaja Timur', lat: -4.122194592440136, lng: 104.17501242883539, status: 'Aktif' },
+            { id: 17, name: '17. Prabumulih Sudirman', lat: -3.3958344000740426, lng: 104.26522958465848, status: 'Aktif' },
+            { id: 10, name: '10. Bengkulu', lat: -3.822861195793757, lng: 102.2989164711646, status: 'Aktif' },
+            { id: 18, name: '18. Arga Makmur', lat: -3.441978805184108, lng: 102.1799694711646, status: 'Aktif' },
+            { id: 19, name: '19. Rejang Lebong Curup', lat: -3.4719106404856577, lng: 102.53220319733282, status: 'Aktif' },
+            { id: 11, name: '11. Pangkal Pinang', lat: -2.0990587620001397, lng: 106.11133508650612, status: 'Aktif' },
+            { id: 20, name: '20. Bandar Lampung', lat: -5.4406297953820575, lng: 105.25593548999109, status: 'Sangat Aktif' },
+            { id: 21, name: '21. Lampung Selatan Kalianda', lat: -5.719752249621101, lng: 105.5855414269938, status: 'Aktif' },
+            { id: 22, name: '22. Pringsewu Sudirman', lat: -5.354245041581658, lng: 104.97324632161101, status: 'Aktif' },
+            { id: 23, name: '23. Kota Metro Nasution', lat: -5.10617124737937, lng: 105.33339055414163, status: 'Aktif' },
+            { id: 24, name: '24. Tulang Bawang Banjar Agung', lat: -4.290952308666126, lng: 105.22287191181242, status: 'Aktif' }
+        ];
+
+        let map = null;
+
+        function createPulseIcon() {
+            return L.divIcon({
+                className: 'custom-pulse-marker',
+                html: `<div class="ring"></div><div class="core"></div>`,
+                iconSize: [18, 18],
+                iconAnchor: [9, 9]
+            });
+        }
+
+        function initMap() {
+            if (map !== null) {
+                map.invalidateSize();
+                return;
+            }
+
+            map = L.map('map', {
+                zoomControl: true,
+                attributionControl: true
+            });
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 18,
+                minZoom: 4,
+                attribution: '&copy; OpenStreetMap contributors'
+            }).addTo(map);
+
+            const latLngs = [];
+
+            LOCATIONS.forEach(loc => {
+                const latLng = [loc.lat, loc.lng];
+                latLngs.push(latLng);
+
+                const marker = L.marker(latLng, { icon: createPulseIcon() }).addTo(map);
+
+                const popupContent = `
+                    <div style="font-weight: 700; color: #88C438; font-size: 13px;">${loc.name}</div>
+                    <div style="color: #e2e8f0; margin-top: 2px;">Koordinat: <span style="color: #94a3b8; font-size: 11px;">${loc.lat.toFixed(4)}, ${loc.lng.toFixed(4)}</span></div>
+                    <div style="color: #e2e8f0; margin-top: 2px;">Status: <b style="color: #88C438;">${loc.status}</b></div>
+                `;
+
+                marker.bindPopup(popupContent);
+
+                marker.on('mouseover', function () {
+                    this.openPopup();
+                });
+            });
+
+            const bounds = L.latLngBounds(latLngs);
+            map.fitBounds(bounds, { padding: [30, 30] });
+        }
+
+        // Panggil initMap saat halaman selesai dimuat (atau pastikan terhubung dengan logika Anda)
+        document.addEventListener('DOMContentLoaded', () => {
+            initMap();
+        });
+
+        // ================= AUTENTIKASI LOGIN =================
+        const AKUN = {
+            kepesertaan: { username: 'BPJS.KEPESERTAAN', password: 'kepesertaanbpjs', tujuan: 'kepesertaan/kepesertaan.html' },
+            pelayanan:   { username: 'BPJS.PELAYANAN',   password: 'pelayananbpjs',   tujuan: 'pelayanan/index.html' },
+            kearsipan:   { username: 'BPJS.KEARSIPAN',   password: 'kearsipanbpjs',   tujuan: 'kearsipan/kearsipan.php' }
+        };
+
+        function tampilkanError(pesan) {
+            const box = document.getElementById('login-error');
+            document.getElementById('login-error-text').textContent = pesan;
+            box.classList.remove('hidden');
+            box.classList.add('flex');
+            const card = document.getElementById('login-box');
+            card.classList.remove('shake');
+            void card.offsetWidth; 
+            card.classList.add('shake');
+        }
+
+        function sembunyikanError() {
+            const box = document.getElementById('login-error');
+            box.classList.add('hidden');
+            box.classList.remove('flex');
+        }
+
+        function toggleLoginForm(role) {
+            const formSection = document.getElementById('form-login-section');
+            const roleSelect = document.getElementById('role-select');
+
+            if (role && AKUN[role]) {
+                roleSelect.value = role;
+            }
+
+            sembunyikanError();
+            formSection.classList.remove('hidden');
+            formSection.classList.add('flex');
+            setTimeout(() => {
+                if (!document.getElementById('login-form').contains(document.activeElement)) {
+                    document.getElementById('login-username').focus();
+                }
+            }, 50);
+        }
+
+        function closeLoginForm() {
+            const formSection = document.getElementById('form-login-section');
+            formSection.classList.add('hidden');
+            formSection.classList.remove('flex');
+            document.getElementById('login-form').reset();
+            sembunyikanError();
+        }
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLoginForm(); });
+
+        ['login-username', 'login-password', 'role-select'].forEach(id => {
+            document.addEventListener('DOMContentLoaded', () => {
+                const n = document.getElementById(id);
+                if(n) {
+                    n.addEventListener('input', sembunyikanError);
+                    n.addEventListener('change', sembunyikanError);
+                }
+            });
+        });
+
+        function handleLoginSubmit(event) {
+            event.preventDefault();
+
+            const peran = document.getElementById('role-select').value;
+            const username = document.getElementById('login-username').value.trim();
+            const password = document.getElementById('login-password').value;
+
+            if (!username || !password) {
+                tampilkanError('Username dan password wajib diisi.');
+                return;
+            }
+
+            const akun = Object.prototype.hasOwnProperty.call(AKUN, peran) ? AKUN[peran] : null;
+
+            if (!akun || username.toUpperCase() !== akun.username || password !== akun.password) {
+                document.getElementById('login-password').value = '';
+                tampilkanError('Username atau password salah, atau tidak sesuai dengan peran kerja yang dipilih.');
+                return;
+            }
+
+            try {
+                sessionStorage.setItem('user_role', peran);
+                sessionStorage.setItem('user_name', akun.username);
+                sessionStorage.setItem('user_logged_in', 'true');
+            } catch (e) {}
+
+            var tujuan = akun.tujuan;
+            if (/\.php$/i.test(tujuan) && /github\.io$/i.test(location.hostname)) { tujuan = 'kearsipan/info-php.html'; }
+            window.location.href = tujuan;
+        }
+
+        const kurangGerak = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+        function countUp(el, to) {
+            if (kurangGerak) { el.textContent = to.toLocaleString('id-ID'); return; }
+            const t0 = performance.now(), dur = 1100;
+            const f = t => { const p = Math.min(1, (t - t0) / dur); el.textContent = Math.round(to * (1 - Math.pow(1 - p, 3))).toLocaleString('id-ID'); if (p < 1) requestAnimationFrame(f); };
+            requestAnimationFrame(f);
+        }
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('.count').forEach(n => countUp(n, +n.dataset.to));
+            const io = 'IntersectionObserver' in window ? new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('show'); io.unobserve(e.target); } }), { threshold: 0.12 }) : null;
+            document.querySelectorAll('.reveal').forEach(n => io ? io.observe(n) : n.classList.add('show'));
+        });
+    </script>
+</body>
+</html>
