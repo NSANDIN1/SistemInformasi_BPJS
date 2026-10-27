@@ -84,7 +84,7 @@
                 <button onclick="resetAllData()" class="w-full bg-red-500/10 hover:bg-red-600 text-red-400 hover:text-white text-xs py-3 px-4 rounded-xl font-bold transition flex items-center justify-center gap-2 border border-red-500/20">
                     <i class="fa-solid fa-trash-can"></i> Reset Semua Data
                 </button>
-                <div class="text-[10px] text-slate-500 text-center font-medium mt-1">Sistem Otomatis Tersimpan (Local) · <b>Versi 7 (ringkasan ke beranda)</b></div>
+                <div class="text-[10px] text-slate-500 text-center font-medium mt-1">Penyimpanan Server MySQL · <b>Versi 8</b></div>
             </div>
         </aside>
 
@@ -328,10 +328,39 @@
         document.getElementById('date-rekap').valueAsDate = new Date();
         document.getElementById('date-perisai').valueAsDate = new Date();
 
-        let globalRekapData = JSON.parse(localStorage.getItem('ews_rekap_data')) || [];
-        let globalPerisaiAktifData = JSON.parse(localStorage.getItem('ews_perisai_aktif_data_v2')) || [];
+        // Data utama disimpan di server MySQL melalui api/kepesertaan.php.
+        let globalRekapData = [];
+        let globalPerisaiAktifData = [];
 
-        renderDashboard();
+        async function apiKepesertaan(payload) {
+            const response = await fetch('../api/kepesertaan.php', {
+                method: payload ? 'POST' : 'GET',
+                headers: payload ? {'Content-Type': 'application/json'} : {},
+                body: payload ? JSON.stringify(payload) : undefined,
+                credentials: 'same-origin'
+            });
+            const result = await response.json();
+            if (!response.ok || !result.ok) throw new Error(result.message || 'Permintaan ke server gagal.');
+            return result;
+        }
+
+        async function simpanDataServer() {
+            await apiKepesertaan({action: 'save', rekap: globalRekapData, perisai: globalPerisaiAktifData});
+        }
+
+        async function muatDataServer() {
+            try {
+                const result = await apiKepesertaan();
+                globalRekapData = Array.isArray(result.rekap) ? result.rekap : [];
+                globalPerisaiAktifData = Array.isArray(result.perisai) ? result.perisai : [];
+                renderDashboard();
+            } catch (error) {
+                alert('Data server belum dapat dimuat. Pastikan Apache, MySQL, database, dan api/kepesertaan.php sudah dipasang.\\n\\nDetail: ' + error.message);
+                renderDashboard();
+            }
+        }
+
+        muatDataServer();
 
         function handleRekapUpload(event) {
             const file = event.target.files[0];
@@ -339,7 +368,7 @@
             const periodeDate = document.getElementById('date-rekap').value || 'Tanpa Tanggal';
 
             const reader = new FileReader();
-            reader.onload = function(e) {
+            reader.onload = async function(e) {
                 const data = new Uint8Array(e.target.result);
                 const workbook = XLSX.read(data, {type: 'array'});
                 const worksheet = workbook.Sheets[workbook.SheetNames[0]];
@@ -371,9 +400,13 @@
                         added++;
                     }
                 }
-                localStorage.setItem('ews_rekap_data', JSON.stringify(globalRekapData));
-                renderDashboard();
-                alert(`Berhasil! ${added} data Rekap TK tanggal ${periodeDate} berhasil dimuat.`);
+                try {
+                    await simpanDataServer();
+                    renderDashboard();
+                    alert(`Berhasil! ${added} data Rekap TK tanggal ${periodeDate} berhasil disimpan ke SERVER.`);
+                } catch (err) {
+                    alert('Import terbaca tetapi gagal disimpan ke server: ' + err.message + '\\nPeriksa konfigurasi database/API.');
+                }
             };
             reader.readAsArrayBuffer(file);
             event.target.value = '';
@@ -433,29 +466,58 @@
         function handlePerisaiAktifUpload(event) {
             const file = event.target.files[0];
             if (!file) return;
+
             // Tanggal otomatis dari nama file, mis. EC015_13102026_NAMA.xlsx -> 2026-10-13
             const mf = file.name.match(/(\d{2})(\d{2})(20\d{2})/);
-            if (mf && +mf[1] >= 1 && +mf[1] <= 31 && +mf[2] >= 1 && +mf[2] <= 12) document.getElementById('date-perisai').value = `${mf[3]}-${mf[2]}-${mf[1]}`;
+            if (mf && +mf[1] >= 1 && +mf[1] <= 31 && +mf[2] >= 1 && +mf[2] <= 12) {
+                document.getElementById('date-perisai').value = `${mf[3]}-${mf[2]}-${mf[1]}`;
+            }
             const periodeDate = document.getElementById('date-perisai').value || 'Tanpa Tanggal';
-
             const reader = new FileReader();
-            reader.onload = function(e) {
+
+            reader.onload = async function(e) {
                 try {
                     const workbook = XLSX.read(new Uint8Array(e.target.result), {type: 'array'});
-                    const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], {header: 1, defval: null});
+                    const rows = XLSX.utils.sheet_to_json(
+                        workbook.Sheets[workbook.SheetNames[0]],
+                        {header: 1, defval: null}
+                    );
                     const res = parsePerisaiRows(rows, periodeDate);
-                    if (!res.records.length) { alert('Format file tidak dikenali. Pastikan kolom sesuai format EC015.'); return; }
-                    // Import pada tanggal yang sama menggantikan data lama (bukan menumpuk)
-                    globalPerisaiAktifData = globalPerisaiAktifData.filter(x => x.periode !== periodeDate).concat(res.records);
-                    localStorage.setItem('ews_perisai_aktif_data_v2', JSON.stringify(globalPerisaiAktifData));
+
+                    if (!res.records.length) {
+                        alert('Format file tidak dikenali. Pastikan kolom sesuai format EC015.');
+                        return;
+                    }
+
+                    // Import pada tanggal yang sama menggantikan data lama.
+                    const dataSebelumnya = globalPerisaiAktifData;
+                    globalPerisaiAktifData = globalPerisaiAktifData
+                        .filter(x => x.periode !== periodeDate)
+                        .concat(res.records);
+
+                    try {
+                        // Penting: simpan dataset Perisai ke MySQL melalui API, bukan localStorage.
+                        await simpanDataServer();
+                    } catch (saveError) {
+                        globalPerisaiAktifData = dataSebelumnya;
+                        throw new Error('Data terbaca, tetapi gagal disimpan ke server. ' + saveError.message);
+                    }
+
                     renderDashboard();
-                    alert(`Berhasil (tgl ${periodeDate})!\n${res.totalRows} baris dibaca → ${res.records.filter(isPerisaiAktif).length} Perisai dihitung (per baris).\nCatatan: ${res.dup} baris ganda tetap dihitung.${res.nonaktif ? `\n${res.nonaktif} baris berstatus selain Y tetap dihitung: ${res.contoh.join('; ')}` : ''}`);
+                    alert(`Berhasil disimpan ke SERVER (tgl ${periodeDate})!\n${res.totalRows} baris dibaca → ${res.records.filter(isPerisaiAktif).length} Perisai dihitung (per baris).\nCatatan: ${res.dup} baris ganda tetap dihitung.${res.nonaktif ? `\n${res.nonaktif} baris berstatus selain Y tetap dihitung: ${res.contoh.join('; ')}` : ''}`);
                 } catch (err) {
-                    alert('File tidak dapat dibaca: ' + err.message);
+                    alert('Import Perisai gagal: ' + err.message);
+                } finally {
+                    event.target.value = '';
                 }
             };
+
+            reader.onerror = function() {
+                alert('File gagal dibaca oleh browser. Silakan coba lagi.');
+                event.target.value = '';
+            };
+
             reader.readAsArrayBuffer(file);
-            event.target.value = '';
         }
 
         // ===== EWS: wadah tanpa Perisai baru >= 3 bulan (berdasarkan TGL AKTIF PERISAI) =====
@@ -524,10 +586,16 @@
             document.getElementById('ews-info').innerHTML = info;
         }
 
-        function resetAllData() {
-            if (confirm("Hapus seluruh data tersimpan?")) {
-                localStorage.clear();
-                location.reload();
+        async function resetAllData() {
+            if (!confirm('Hapus seluruh data kepesertaan yang tersimpan di SERVER? Tindakan ini tidak dapat dibatalkan.')) return;
+            try {
+                await apiKepesertaan({action: 'reset'});
+                globalRekapData = [];
+                globalPerisaiAktifData = [];
+                renderDashboard();
+                alert('Data server berhasil direset.');
+            } catch (error) {
+                alert('Gagal mereset data server: ' + error.message);
             }
         }
 
