@@ -1,6 +1,6 @@
 """
 convert_excel.py - OPSIONAL
-Membaca file Excel Monthly Report lalu menulis ulang js/data.js.
+Membaca file Excel Monthly Report lalu menulis ulang data/laporan_data.js.
 
 Cara pakai (di terminal VS Code, dari folder proyek):
     pip install openpyxl
@@ -126,7 +126,7 @@ def main():
         print(__doc__)
         sys.exit(1)
     data = build(sys.argv[1])
-    target = Path(__file__).resolve().parent.parent / "js" / "data.js"
+    target = Path(__file__).resolve().parent.parent.parent / "data" / "laporan_data.js"
     old = target.read_text(encoding="utf-8") if target.exists() else ""
     head = old.split("const REPORT_DATA")[0] if "const REPORT_DATA" in old else ""
     # pertahankan 'pdf' dan 'catatan' yang sudah Anda isi manual

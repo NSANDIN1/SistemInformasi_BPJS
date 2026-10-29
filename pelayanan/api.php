@@ -1,111 +1,141 @@
 <?php
-// api.php - unggah dan daftar file Excel / PDF Monthly Report Divisi Pelayanan.
-//   GET  api.php?aksi=daftar   -> daftar file yang pernah diunggah
-//   POST api.php?aksi=unggah   -> field "file" (.xlsx .xls .pdf) dan "bulan" (0-12, opsional, untuk PDF)
-// File disimpan permanen di pelayanan/uploads/, catatan unggahan di database/pelayanan.db (SQLite,
-// sama seperti Kearsipan), dan isi laporan ditulis ke js/data.js oleh tools/proses_unggahan.py.
-header('Content-Type: application/json; charset=utf-8');
-date_default_timezone_set('Asia/Jakarta');
+/**
+ * pelayanan/api.php - unggah dan daftar file Excel / PDF Monthly Report Divisi Pelayanan.
+ *   GET  api.php?aksi=daftar   -> daftar file yang pernah diunggah
+ *   POST api.php?aksi=unggah   -> field "file" (.xlsx .xls .pdf) dan "bulan" (0-12, opsional, untuk PDF)
+ *   POST api.php?aksi=hapus    -> field "id" (hapus riwayat saja)
+ * File disimpan permanen di pelayanan/uploads/, riwayat di tabel MySQL `unggahan`,
+ * dan isi laporan ditulis ke data/laporan_data.js oleh pelayanan/tools/proses_unggahan.py.
+ */
+require_once __DIR__ . '/../config/auth.php';
+require_once __DIR__ . '/../config/konstanta.php';
+require_once __DIR__ . '/../koneksi.php';
 
-const MAKS_UKURAN = 25 * 1024 * 1024;   // 25 MB
+wajib_login_api('pelayanan');   // hanya peran Pelayanan yang sudah login
 
-function keluar($data, $kode = 200) { http_response_code($kode); echo json_encode($data, JSON_UNESCAPED_UNICODE); exit; }
-
-$dirUtama = dirname(__DIR__);
-$dirDb = $dirUtama . '/database';
-$dirUnggah = __DIR__ . '/uploads';
-foreach ([$dirDb, $dirUnggah] as $d) { if (!is_dir($d)) { @mkdir($d, 0777, true); } }
-
-try {
-    $db = new PDO('sqlite:' . $dirDb . '/pelayanan.db');
-    $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-    $db->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
-    $db->exec("CREATE TABLE IF NOT EXISTS unggahan (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        nama_asli VARCHAR(255) NOT NULL,
-        nama_simpan VARCHAR(255) NOT NULL,
-        jenis VARCHAR(10) NOT NULL,
-        bulan VARCHAR(40) NULL,
-        ukuran INT NOT NULL,
-        tgl_unggah DATETIME NOT NULL,
-        status VARCHAR(10) NOT NULL,
-        pesan VARCHAR(500) NULL
-    )");
-} catch (Exception $e) {
-    keluar(['ok' => false, 'pesan' => 'Database tidak bisa dibuka (pastikan PHP mendukung SQLite dan folder database bisa ditulis).'], 500);
-}
-
-$aksi = $_GET['aksi'] ?? 'daftar';
+$aksi   = (string) ($_GET['aksi'] ?? 'daftar');
+$metode = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 
 if ($aksi === 'daftar') {
-    $baris = $db->query('SELECT id, nama_asli, nama_simpan, jenis, bulan, ukuran, tgl_unggah, status, pesan
-                         FROM unggahan ORDER BY id DESC LIMIT 100')->fetchAll();
-    keluar(['ok' => true, 'daftar' => $baris]);
+    $baris = db_all($koneksi,
+        'SELECT id, nama_asli, nama_simpan, jenis, bulan, ukuran, tgl_unggah, status, pesan
+         FROM unggahan ORDER BY id DESC LIMIT 100');
+    json_balas(200, ['ok' => true, 'daftar' => $baris]);
 }
 
-if ($aksi !== 'unggah' || $_SERVER['REQUEST_METHOD'] !== 'POST') {
-    keluar(['ok' => false, 'pesan' => 'Permintaan tidak dikenal.'], 400);
+if ($metode !== 'POST' || !in_array($aksi, ['unggah', 'hapus'], true)) {
+    json_balas(400, ['ok' => false, 'pesan' => 'Permintaan tidak dikenal.']);
 }
 
-// ---------- validasi file
+// Semua aksi tulis wajib membawa token CSRF (header X-CSRF-Token)
+$token = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
+if (!is_string($token) || !hash_equals($_SESSION['csrf'] ?? '', $token)) {
+    json_balas(419, ['ok' => false, 'pesan' => 'Sesi tidak valid. Muat ulang halaman lalu coba lagi.']);
+}
+
+// Hapus riwayat saja: tidak menghapus file di uploads maupun data laporan.
+if ($aksi === 'hapus') {
+    $id = filter_input(INPUT_POST, 'id', FILTER_VALIDATE_INT);
+    if (!$id || $id < 1) {
+        json_balas(400, ['ok' => false, 'pesan' => 'ID riwayat tidak valid.']);
+    }
+    if (db_exec($koneksi, 'DELETE FROM unggahan WHERE id = ?', [$id]) < 1) {
+        json_balas(404, ['ok' => false, 'pesan' => 'Riwayat tidak ditemukan atau sudah dihapus.']);
+    }
+    json_balas(200, ['ok' => true, 'pesan' => 'Riwayat unggahan berhasil dihapus.']);
+}
+
+// ---------- unggah: validasi file
+$dirUnggah = __DIR__ . '/uploads';
+$dirData   = __DIR__ . '/../data';
+foreach ([$dirUnggah, $dirData] as $d) {
+    if (!is_dir($d)) {
+        @mkdir($d, 0777, true);
+    }
+}
+
 $f = $_FILES['file'] ?? null;
-if (!$f || $f['error'] === UPLOAD_ERR_NO_FILE) { keluar(['ok' => false, 'pesan' => 'Belum ada file yang dipilih.'], 400); }
-if ($f['error'] === UPLOAD_ERR_INI_SIZE || $f['error'] === UPLOAD_ERR_FORM_SIZE || $f['size'] > MAKS_UKURAN) {
-    keluar(['ok' => false, 'pesan' => 'Ukuran file terlalu besar (maksimal 25 MB, atau batas upload_max_filesize di php.ini).'], 400);
+if (!$f || $f['error'] === UPLOAD_ERR_NO_FILE) {
+    json_balas(400, ['ok' => false, 'pesan' => 'Belum ada file yang dipilih.']);
 }
-if ($f['error'] !== UPLOAD_ERR_OK) { keluar(['ok' => false, 'pesan' => 'File gagal diunggah (kode ' . (int)$f['error'] . ').'], 400); }
+if ($f['error'] === UPLOAD_ERR_INI_SIZE || $f['error'] === UPLOAD_ERR_FORM_SIZE || $f['size'] > MAKS_UNGGAH) {
+    json_balas(400, ['ok' => false, 'pesan' => 'Ukuran file terlalu besar (maksimal 40 MB, atau batas upload_max_filesize di php.ini).']);
+}
+if ($f['error'] !== UPLOAD_ERR_OK) {
+    json_balas(400, ['ok' => false, 'pesan' => 'File gagal diunggah (kode ' . (int) $f['error'] . ').']);
+}
 
-$namaAsli = basename(str_replace('\\', '/', $f['name']));
-$ext = strtolower(pathinfo($namaAsli, PATHINFO_EXTENSION));
+$namaAsli = basename(str_replace('\\', '/', (string) $f['name']));
+$ext      = strtolower(pathinfo($namaAsli, PATHINFO_EXTENSION));
 if (!in_array($ext, ['xlsx', 'xls', 'pdf'], true)) {
-    keluar(['ok' => false, 'pesan' => 'Format file harus .xlsx, .xls, atau .pdf.'], 400);
+    json_balas(400, ['ok' => false, 'pesan' => 'Format file harus .xlsx, .xls, atau .pdf.']);
 }
-$kepala = file_get_contents($f['tmp_name'], false, null, 0, 8);
-$cocok = ($ext === 'pdf' && strncmp($kepala, '%PDF', 4) === 0)
-      || ($ext === 'xlsx' && strncmp($kepala, "PK", 2) === 0)
-      || ($ext === 'xls' && strncmp($kepala, "\xD0\xCF\x11\xE0", 4) === 0);
-if (!$cocok) { keluar(['ok' => false, 'pesan' => 'Isi file tidak sesuai dengan ekstensinya (' . $ext . ').'], 400); }
+$kepala = (string) file_get_contents($f['tmp_name'], false, null, 0, 8);
+$cocok  = ($ext === 'pdf'  && strncmp($kepala, '%PDF', 4) === 0)
+       || ($ext === 'xlsx' && strncmp($kepala, 'PK', 2) === 0)
+       || ($ext === 'xls'  && strncmp($kepala, "\xD0\xCF\x11\xE0", 4) === 0);
+if (!$cocok) {
+    json_balas(400, ['ok' => false, 'pesan' => 'Isi file tidak sesuai dengan ekstensinya (' . $ext . ').']);
+}
 
-$bulanNama = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-$bulanPilih = (int)($_POST['bulan'] ?? 0);
-if ($bulanPilih < 0 || $bulanPilih > 12) { $bulanPilih = 0; }
+$bulanPilih = (int) ($_POST['bulan'] ?? 0);
+if ($bulanPilih < 0 || $bulanPilih > 12) {
+    $bulanPilih = 0;
+}
 
 // ---------- simpan permanen (nama acak agar tidak bisa menimpa / ditebak)
 $namaSimpan = date('Ymd_His') . '_' . bin2hex(random_bytes(3)) . '.' . $ext;
-$tujuan = $dirUnggah . '/' . $namaSimpan;
+$tujuan     = $dirUnggah . '/' . $namaSimpan;
 if (!move_uploaded_file($f['tmp_name'], $tujuan)) {
-    keluar(['ok' => false, 'pesan' => 'File tidak bisa disimpan. Pastikan folder pelayanan/uploads bisa ditulis.'], 500);
+    json_balas(500, ['ok' => false, 'pesan' => 'File tidak bisa disimpan. Pastikan folder pelayanan/uploads bisa ditulis.']);
 }
 
-// ---------- baca isi file (Python memakai alat yang sudah ada), satu proses pada satu waktu
+// ---------- baca isi file (Python memakai alat di pelayanan/tools), satu proses pada satu waktu
 $hasil = ['ok' => false, 'pesan' => 'Fungsi exec() dinonaktifkan di php.ini, jadi isi file belum bisa dibaca. File tetap tersimpan.'];
-if (function_exists('exec') && stripos((string)ini_get('disable_functions'), 'exec') === false) {
+if (function_exists('exec') && stripos((string) ini_get('disable_functions'), 'exec') === false) {
+    // Poppler (pdftotext): pastikan proses Python menemukannya meski PATH Apache berbeda.
+    if (POPPLER_BIN !== '' && is_dir(POPPLER_BIN)) {
+        putenv('PATH=' . (getenv('PATH') ?: '') . PATH_SEPARATOR . POPPLER_BIN);
+    }
     $skrip = __DIR__ . '/tools/proses_unggahan.py';
-    $jenisProses = $ext === 'pdf' ? 'pdf' : 'excel';
-    $args = escapeshellarg($skrip) . ' ' . $jenisProses . ' ' . escapeshellarg($tujuan) . ' ' . $bulanPilih
-          . ' ' . escapeshellarg('uploads/' . $namaSimpan) . ' ' . escapeshellarg($namaAsli);
-    $kunci = fopen($dirDb . '/pelayanan.lock', 'c');
-    if ($kunci) { flock($kunci, LOCK_EX); }
+    $jenis = $ext === 'pdf' ? 'pdf' : 'excel';
+    $args  = escapeshellarg($skrip) . ' ' . $jenis . ' ' . escapeshellarg($tujuan) . ' ' . $bulanPilih
+           . ' ' . escapeshellarg('uploads/' . $namaSimpan) . ' ' . escapeshellarg($namaAsli);
+
+    $kunci = fopen($dirData . '/pelayanan.lock', 'c');
+    if ($kunci) {
+        flock($kunci, LOCK_EX);
+    }
     $hasil = ['ok' => false, 'pesan' => 'Python belum terpasang atau tidak ditemukan di server. File tetap tersimpan.'];
     foreach (['python3', 'python', 'py -3'] as $py) {
-        $out = []; $kode = 0;
+        $out  = [];
+        $kode = 0;
         @exec($py . ' ' . $args . ' 2>&1', $out, $kode);
-        $baris = trim((string)end($out));
-        $j = json_decode($baris, true);
-        if (is_array($j) && isset($j['ok'])) { $hasil = $j; break; }
-        if ($out) { $hasil = ['ok' => false, 'pesan' => 'Gagal menjalankan pembaca data: ' . mb_substr(implode(' ', $out), 0, 200)]; }
+        $j = json_decode(trim((string) end($out)), true);
+        if (is_array($j) && isset($j['ok'])) {
+            $hasil = $j;
+            break;
+        }
+        if ($out) {
+            $hasil = ['ok' => false, 'pesan' => 'Gagal menjalankan pembaca data: ' . mb_substr(implode(' ', $out), 0, 200)];
+        }
     }
-    if ($kunci) { flock($kunci, LOCK_UN); fclose($kunci); }
+    if ($kunci) {
+        flock($kunci, LOCK_UN);
+        fclose($kunci);
+    }
 }
 
-// ---------- catat
+// ---------- catat riwayat
 $bulanCatat = null;
-if (!empty($hasil['bulan'])) {
-    $bulanCatat = implode(', ', array_map(function ($b) use ($bulanNama) { return $bulanNama[(int)$b] ?? $b; }, $hasil['bulan']));
+if (!empty($hasil['bulan']) && is_array($hasil['bulan'])) {
+    $bulanCatat = implode(', ', array_map(function ($b) {
+        return NAMA_BULAN[(int) $b - 1] ?? (string) $b;
+    }, $hasil['bulan']));
 }
-$stmt = $db->prepare('INSERT INTO unggahan (nama_asli, nama_simpan, jenis, bulan, ukuran, tgl_unggah, status, pesan)
-                      VALUES (?,?,?,?,?,?,?,?)');
-$stmt->execute([$namaAsli, $namaSimpan, $ext === 'pdf' ? 'PDF' : 'Excel', $bulanCatat, (int)$f['size'],
-                date('Y-m-d H:i:s'), $hasil['ok'] ? 'berhasil' : 'gagal', mb_substr((string)$hasil['pesan'], 0, 500)]);
+db_exec($koneksi,
+    'INSERT INTO unggahan (nama_asli, nama_simpan, jenis, bulan, ukuran, tgl_unggah, status, pesan) VALUES (?,?,?,?,?,?,?,?)',
+    [$namaAsli, $namaSimpan, $ext === 'pdf' ? 'PDF' : 'Excel', $bulanCatat, (int) $f['size'],
+     date('Y-m-d H:i:s'), !empty($hasil['ok']) ? 'berhasil' : 'gagal', mb_substr((string) ($hasil['pesan'] ?? ''), 0, 500)]);
 
-keluar(['ok' => (bool)$hasil['ok'], 'pesan' => $hasil['pesan'], 'tersimpan' => true, 'bulan' => $bulanCatat]);
+json_balas(200, ['ok' => !empty($hasil['ok']), 'pesan' => (string) ($hasil['pesan'] ?? ''), 'tersimpan' => true, 'bulan' => $bulanCatat]);

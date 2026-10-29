@@ -5,7 +5,7 @@ Memakai ulang alat yang sudah ada (tidak ada logika baca-data yang digandakan):
   - convert_excel.py : membaca Excel Monthly Report
   - parse_pdf.py     : membaca PDF Monthly Report (butuh 'pdftotext' dari poppler)
   - build_data.py    : menggabungkan data PDF dengan data yang sudah ada
-Hasilnya ditulis ke js/data.js, sehingga halaman laporan dan dbpelayanan.html
+Hasilnya ditulis ke data/laporan_data.js, sehingga halaman laporan dan dashboard/pelayanan.php
 otomatis memakai data terbaru.
 
 Pemakaian (dijalankan oleh api.php, bisa juga manual):
@@ -25,7 +25,7 @@ import tempfile
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-DATA_JS = HERE.parent / "js" / "data.js"
+DATA_JS = HERE.parent.parent / "data" / "laporan_data.js"
 
 
 def _muat(nama):
@@ -129,15 +129,38 @@ def proses_excel(path, ce):
 
 
 # ------------------------------------------------------------ PDF
+def bulan_dari_sampul_pdf(path, ce):
+    """Deteksi periode dari teks halaman pertama PDF, bukan hanya nama file."""
+    if not shutil.which("pdftotext"):
+        return None
+    try:
+        r = subprocess.run(
+            ["pdftotext", "-f", "1", "-l", "1", "-layout", str(path), "-"],
+            check=True, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30
+        )
+        teks = r.stdout.upper()
+        for i, nama in enumerate(ce.BULAN, start=1):
+            if re.search(r"\b" + re.escape(nama) + r"\b", teks):
+                return i
+    except Exception:
+        pass
+    return None
+
+
 def proses_pdf(path, bulan, simpan_rel, ce, nama_asli=""):
     if not shutil.which("pdftotext"):
         raise Gagal("Program 'pdftotext' (poppler) belum terpasang di server, jadi isi PDF belum bisa dibaca. "
                     "File PDF tetap tersimpan.")
     pp, bd = _muat("parse_pdf"), _muat("build_data")
-    if not bulan:
+    # Periode pada sampul PDF adalah sumber utama. Ini mencegah nama file yang
+    # keliru (mis. MONTHLY_REPORT_AGUSTUS.pdf berisi SEPTEMBER 2026) masuk ke bulan salah.
+    bulan_sampul = bulan_dari_sampul_pdf(path, ce)
+    if bulan_sampul:
+        bulan = bulan_sampul
+    elif not bulan:
         bulan = bulan_dari_nama(nama_asli or os.path.basename(simpan_rel), ce)
     if not bulan:
-        raise Gagal("Bulan laporan tidak terdeteksi dari nama file. Pilih bulan pada kolom \"Bulan\" lalu unggah lagi.")
+        raise Gagal("Bulan laporan tidak terdeteksi dari sampul atau nama file. Pilih bulan pada kolom \"Bulan\" lalu unggah lagi.")
     try:
         pdf = pp.parse(str(path), bulan)
     except Exception:
@@ -153,8 +176,11 @@ def proses_pdf(path, bulan, simpan_rel, ce, nama_asli=""):
     semua[str(bulan)] = cur
     semua = {k: semua[k] for k in sorted(semua, key=int)}
     tulis_data(kepala, semua)
-    return {"ok": True, "bulan": [bulan],
-            "pesan": "Data PDF terbaca dan dipakai untuk laporan %s." % ce.NAMA[bulan - 1]}
+    pesan = "Data PDF terbaca dan dipakai untuk laporan %s." % ce.NAMA[bulan - 1]
+    nama_bulan_file = bulan_dari_nama(nama_asli, ce) if nama_asli else None
+    if bulan_sampul and nama_bulan_file and nama_bulan_file != bulan_sampul:
+        pesan += " Periode di sampul (%s) berbeda dari nama file; periode sampul yang digunakan." % ce.NAMA[bulan_sampul - 1]
+    return {"ok": True, "bulan": [bulan], "pesan": pesan}
 
 
 def main():

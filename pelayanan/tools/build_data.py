@@ -1,6 +1,6 @@
 """
 build_data.py - OPSIONAL
-Menggabungkan Excel + hasil parse PDF menjadi js/data.js.
+Menggabungkan Excel + hasil parse PDF menjadi data/laporan_data.js.
 
 Aturan penggabungan (sesuai permintaan):
   1. Data lama yang punya pengganti di PDF terbaru  -> DIGANTI dengan nilai PDF.
@@ -162,7 +162,7 @@ def main():
     for j in jsons:
         d = json.load(open(j, encoding="utf-8"))
         pdfs[d["bulan"]] = d
-    old = (HERE.parent / "js" / "data.js").read_text(encoding="utf-8")
+    old = (HERE.parent.parent / "data" / "laporan_data.js").read_text(encoding="utf-8")
     head = old.split("const REPORT_DATA")[0]
     prev = {}
     try:
@@ -178,7 +178,7 @@ def main():
             "catatan": p.get("catatan", []),
             "sections": merge_month(m, xl.get(m), pdfs.get(m)),
         }
-    (HERE.parent / "js" / "data.js").write_text(
+    (HERE.parent.parent / "data" / "laporan_data.js").write_text(
         head + "const REPORT_DATA = " + json.dumps(out, ensure_ascii=False, indent=1) + ";\n", encoding="utf-8")
     print("Bulan:", [ce.NAMA[int(k) - 1] for k in out])
     print(f"Selisih Excel lama vs PDF baru ({len(diffs)}):")
